@@ -59,13 +59,13 @@ private:
     CONFIG mConfig;
     QTimer mDecodeTimer;
 
+    AVStream *mStream = nullptr;
     const AVCodec *mCodec = nullptr;
     AVCodecContext *mCodecCtx = nullptr;
-    AVFormatContext *mFmtCtx = nullptr;
+
     SwsContext *mSwsContext = nullptr;
     AVBufferRef *mHWContext = nullptr;
 
-    int mVideoStreamIndex;
 
     QMutex mFramesMutex;
     QQueue<AVFrame*> mFrames;

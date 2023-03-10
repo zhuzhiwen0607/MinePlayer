@@ -23,39 +23,27 @@ class Reader : public QThread
 public:
     typedef struct
     {
-//        qint32 blockSize;
         int taskId;
         QString fileName;
     } CONFIG;
 
 public:
-//    explicit Reader(CONFIG &config);
     Reader();
     ~Reader();
 
     bool Init(CONFIG &config);
-    bool WriteHeader();    // test
+
     void Start();
 
-    AVFormatContext* GetFormatContext() const;
-    const AVCodec* GetVideoCodec() const;
-    const AVCodec* GetAudioCodec() const;
-    int GetVideoStreamId() const;
-    int GetAudioStreamId() const;
-//    qint32 GetVideoWidth() const;
-//    qint32 GetVideoHeight() const;
+    AVStream* GetVideoStream() const;
+    AVStream* GetAudioStream() const;
 
     AVPacket* GetVideoPacket();
     void FreeVideoPacket(AVPacket *packet);
     AVPacket* GetAudioPacket();
     void FreeAudioPacket(AVPacket *packet);
 
-    bool GetRawBytes(QByteArray& rawBytes);
-//    QByteArray& GetRawBytes();
-    void FreeRawBytes(QByteArray &rawBytes);
-
 signals:
-//    void SigNewPacket();
     void SigDecodeVideo();
     void SigDecodeAudio();
 
@@ -78,22 +66,24 @@ private:
 
 private:
     CONFIG mConfig;
-//    QFile mFile;
+
     QTimer mReaderTimer;
 
-//    QByteArrayList mRawBytesList;
+    AVFormatContext *mFmtCtx = nullptr;
+
+    // video
     QMutex mVideoPacketsMutex;
     QQueue<AVPacket*> mVideoPackets;
+
+    AVStream *mVideoStream = nullptr;
+    int mVideoStreamId = -1;
+
+    // audio
     QMutex mAudioPacketsMutex;
     QQueue<AVPacket*> mAudioPackets;
 
-    AVFormatContext *mFmtCtx = nullptr;
-    const AVCodec *mVideoCodec = nullptr;
-    const AVCodec *mAudioCodec = nullptr;
-    int mVideoStreamId = -1;
+    AVStream *mAudioStream = nullptr;
     int mAudioStreamId = -1;
-//    AVPacket *mPacket = nullptr;
-//    AVCodec *mCodec = nullptr;
 
     AVFormatContext *mOutFmtCtx = nullptr;
 
@@ -106,7 +96,7 @@ private:
 
     FILE *mFp = nullptr;
 
-//    char *mBuffer = nullptr;
+
 };
 
 

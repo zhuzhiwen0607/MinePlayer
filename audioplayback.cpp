@@ -109,13 +109,7 @@ void AudioPlayback::OnPlayback()
     int bufSize = 0;
     Resample(frame, &outData, bufSize);
 
-//    qint64 size = av_samples_get_buffer_size(frame->linesize,
-//                                             frame->channels,
-//                                             frame->nb_samples,
-//                                             (AVSampleFormat)frame->format,
-//                                             1);
 
-//    qint64 nBytes = mAudioDevice->write((const char*)frame->extended_data[0], size);
     qint64 nBytes = mAudioDevice->write((const char*)outData[0], bufSize);
 //    qDebug("size %ld, write %ld bytes", size, nBytes);
 
@@ -138,7 +132,6 @@ void AudioPlayback::Resample(AVFrame *frame, uint8_t ***outData, int &outSize)
     if (!frame)
         return;
 
-//    int nb_channels = frame->channels;
     int line_size;
     int64_t delay = swr_get_delay(mSwrCtx, frame->sample_rate) + frame->nb_samples;
     int64_t outNbSamples = av_rescale_rnd(delay,

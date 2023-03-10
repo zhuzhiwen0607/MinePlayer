@@ -13,20 +13,16 @@ Reader::~Reader()
 {
     disconnect(&mReaderTimer, &QTimer::timeout, this, &Reader::OnReadFile);
     CloseFile();
-//    CloseFile3();
 
     quit();
     wait();
 
     for (auto videoPacket : mVideoPackets)
     {
-//        av_packet_free(&packet);
         FreeVideoPacket(videoPacket);
     }
 
     mVideoPackets.clear();
-
-
 
 }
 
@@ -42,10 +38,6 @@ bool Reader::Init(CONFIG &config)
     if (false == OpenFile())
         return false;
 
-
-//    if (false == OpenFile3())
-//        return false;
-
     if (false == AnalyzeStreams())
         return false;
 
@@ -53,83 +45,19 @@ bool Reader::Init(CONFIG &config)
 
 }
 
-bool Reader::WriteHeader()
-{
-    int ret = avformat_alloc_output_context2(&mOutFmtCtx, NULL, NULL, "D:\\out.h264");
-    if (ret < 0)
-    {
-        qWarning() << QString("[WriteHeader] avformat_alloc_output_context2 error: ret=%1").arg(ret);
-        return false;
-    }
-
-    AVStream *stream = avformat_new_stream(mOutFmtCtx, NULL);
-    if (!stream)
-    {
-        qWarning() << QString("[WriteHeader] avformat_new_stream error");
-        return false;
-    }
-
-//    ret = avcodec_parameters_from_context(stream->codecpar, mVideoCodec);
-
-
-    return true;
-#if 0
-    do
-    {
-        int ret = avformat_alloc_output_context2(&mOutFmtCtx, NULL, NULL, "E:\\out.h264");
-        if (ret < 0)
-            qWarning() << QString("[test] avformat_alloc_output_context2 error: ret=%1").arg(ret);
-
-        if (NULL == avformat_new_stream(mOutFmtCtx, NULL))
-            qWarning() << QString("[test] avformat_new_stream error");
-
-        ret = avcodec_parameters_from_context(mOutFmtCtx->streams[0]->codecpar, mCodecCtx);
-        if (ret < 0)
-            qWarning() << QString("[test] avcodec_parameters_from_context error: ret=%1").arg(ret);
-
-        AVIOContext *ioCtx = NULL;
-        ret = avio_open2(&ioCtx, "E:\\out.h264", 0, NULL, NULL);
-        if (ret < 0)
-            qWarning() << QString("[test] avio_open2 error: ret=%1").arg(ret);
-
-        ret = avformat_write_header(mOutFmtCtx, NULL);
-        qWarning() << QString("[test] avformat_write_header: ret=%1").arg(ret);
-
-        return true;
-    } while (0);
-
-    return false;
-#endif
-}
 
 void Reader::Start()
 {
     this->start();
 }
 
-AVFormatContext* Reader::GetFormatContext() const
+AVStream* Reader::GetVideoStream() const
 {
-    return mFmtCtx;
+    return mVideoStream;
 }
-
-const AVCodec* Reader::GetVideoCodec() const
+AVStream* Reader::GetAudioStream() const
 {
-    return mVideoCodec;
-}
-
-const AVCodec* Reader::GetAudioCodec() const
-{
-    return mAudioCodec;
-}
-
-int Reader::GetVideoStreamId() const
-{
-    return mVideoStreamId;
-}
-
-int Reader::GetAudioStreamId() const
-{
-    return mAudioStreamId;
+    return mAudioStream;
 }
 
 AVPacket* Reader::GetVideoPacket()
@@ -180,92 +108,11 @@ void Reader::FreeAudioPacket(AVPacket *packet)
     }
 }
 
-bool Reader::GetRawBytes(QByteArray &rawBytes)
-{
-    QMutexLocker locker(&mRawBytesMutex);
-    if (mRawBytes.isEmpty())
-        return false;
-
-    rawBytes = mRawBytes.first();
-    return true;
-
-}
-/*
-QByteArray& Reader::GetRawBytes()
-{
-    QMutexLocker locker(&mRawBytesMutex);
-    if (mRawBytes.isEmpty())
-        return QByteArray();
-
-    return mRawBytes.first();
-}
-*/
-void Reader::FreeRawBytes(QByteArray &rawBytes)
-{
-    QMutexLocker locker(&mRawBytesMutex);
-    if (mRawBytes.isEmpty())
-        return;
-
-    mRawBytes.removeOne(rawBytes);
-}
-#if 0
-void Reader::OnReadFile()
-{
-
-
-
-
-    static int blocksize = 4196;
-
-    static char* buffer = new char[blocksize];
-    memset(buffer, 0, blocksize);
-
-    size_t readBytes = fread(buffer, 1, blocksize, mFp);
-    if (readBytes <= 0)
-        return;
-
-    QByteArray rawBytes(buffer, readBytes);
-
-
-#if 0
-    QByteArray rawBytes;
-    rawBytes.reserve(blocksize);
-
-    mDataStream >> rawBytes;
-
-    qDebug() << QString("rawBytes size %1").arg(rawBytes.size());
-
-    QByteArray rawBytes = mFile.read(blocksize);
-
-//    {
-//        QMutexLocker locker(&mRawBytesMutex);
-//        mRawBytes.push_back(rawBytes);
-//    }
-
-    QByteArray rawBytes;
-    size_t readBytes = fread(rawBytes.data(), 1, blocksize, mFp);
-    rawBytes.resize(readBytes);
-#endif
-//    qDebug() << QString("read bytes %1").arg(readBytes);
-
-    {
-        QMutexLocker locker(&mRawBytesMutex);
-        mRawBytes.push_back(rawBytes);
-    }
-
-
-    emit SigDecodeVideo(mConfig.taskId);
-
-
-    Utils::AppendBytesToFile(QString("D:\\readfile012.mp4"), rawBytes);
-}
-#endif
 
 
 void Reader::OnReadFile()
 {
-//    static int readCounts = 0;
-//    qDebug() << QString("OnReadFile %1").arg(readCounts++);
+
     AVPacket *packet = av_packet_alloc();
 
     int ret = av_read_frame(mFmtCtx, packet);
@@ -276,14 +123,11 @@ void Reader::OnReadFile()
         return;
     }
 
-
     if (packet->stream_index == mVideoStreamId)
     {
         QMutexLocker locker(&mVideoPacketsMutex);
         mVideoPackets.enqueue(packet);
         emit SigDecodeVideo();
-//        qDebug() << QString("[%1]mVideoPackets size %2").arg(mConfig.taskId).arg(mVideoPackets.size());
-
 
 //        av_write_frame(mOutFmtCtx, packet);
     }
@@ -297,8 +141,6 @@ void Reader::OnReadFile()
     {
         ;
     }
-
-
 
 }
 
@@ -342,68 +184,30 @@ bool Reader::AnalyzeStreams()
         return false;
     }
 
-    ret = av_find_best_stream(mFmtCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
-    if (ret < 0)
+    mVideoStreamId = av_find_best_stream(mFmtCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
+    if (mVideoStreamId < 0)
     {
-        qWarning() << QString("av_find_best_stream error: ret %1").arg(ret);
-        return false;
-    }
-    mVideoStreamId = ret;
-
-
-    AVStream *stream = mFmtCtx->streams[mVideoStreamId];
-//    qDebug() << QString("codec_id = %1").arg(stream->codecpar->codec_id);
-
-    mVideoCodec = avcodec_find_decoder(stream->codecpar->codec_id);
-
-    ret = av_find_best_stream(mFmtCtx, AVMEDIA_TYPE_AUDIO, -1, -1, &mAudioCodec, 0);
-    if (ret < 0)
-    {
-        qWarning() << QString("av_find_best_stream error: ret %1").arg(ret);
-        return false;
-    }
-    mAudioStreamId = ret;
-
-    stream = mFmtCtx->streams[mAudioStreamId];
-    mAudioCodec = avcodec_find_decoder(stream->codecpar->codec_id);
-
-    return true;
-}
-
-bool Reader::OpenFile2()
-{
-    mFile.setFileName(mConfig.fileName);
-    if (false == mFile.open(QIODevice::ReadOnly))
-    {
-        qWarning() << QString("open file %1 error").arg(mConfig.fileName);
+        qWarning() << QString("av_find_best_stream(AVMEDIA_TYPE_VIDEO) error: ret %1").arg(mVideoStreamId);
         return false;
     }
 
-    mDataStream.setDevice(&mFile);
+    mVideoStream = mFmtCtx->streams[mVideoStreamId];
 
-
-    return true;
-}
-
-
-void Reader::CloseFile2()
-{
-    mFile.close();
-}
-
-bool Reader::OpenFile3()
-{
-    mFp = fopen(mConfig.fileName.toStdString().c_str(), "rb");
-    if (!mFp)
+    mAudioStreamId = av_find_best_stream(mFmtCtx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
+    if (mAudioStreamId < 0)
     {
-        qWarning() << "fopen error " << mConfig.fileName;
+        qWarning() << QString("av_find_best_stream(AVMEDIA_TYPE_AUDIO) error: ret %1").arg(mAudioStreamId);
+        return false;
+    }
+
+    mAudioStream = mFmtCtx->streams[mAudioStreamId];
+
+    if (!mVideoStream || !mAudioStream)
+    {
+        qWarning("video_stream or audio_stream is null");
         return false;
     }
 
     return true;
 }
-void Reader::CloseFile3()
-{
-    fclose(mFp);
-    mFp = nullptr;
-}
+

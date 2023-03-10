@@ -15,7 +15,6 @@ AudioDecoder::~AudioDecoder()
     quit();
     wait();
 
-//    av_packet_free(&mPacket);
 
 }
 
@@ -32,10 +31,9 @@ bool AudioDecoder::Init(CONFIG &config)
     connect(&mDecodeTimer, &QTimer::timeout, this, &AudioDecoder::OnDecode);
     connect(mConfig.reader, &Reader::SigDecodeAudio, this, &AudioDecoder::OnDecode);
 
-    mFmtCtx = mConfig.reader->GetFormatContext();
+    mStream = mConfig.reader->GetAudioStream();
 
-    mAudioStreamIndex = mConfig.reader->GetAudioStreamId();
-    mCodec = mConfig.reader->GetAudioCodec();
+    mCodec = avcodec_find_decoder(mStream->codecpar->codec_id);
 
     mCodecCtx = avcodec_alloc_context3(mCodec);
     if (!mCodecCtx)
@@ -45,7 +43,7 @@ bool AudioDecoder::Init(CONFIG &config)
     }
 
 
-    int ret = avcodec_parameters_to_context(mCodecCtx, mFmtCtx->streams[mAudioStreamIndex]->codecpar);
+    int ret = avcodec_parameters_to_context(mCodecCtx, mStream->codecpar);
     if (ret < 0)
     {
         qWarning() << QString("avcodec_parameters_to_context error: ret %1").arg(ret);
@@ -59,48 +57,6 @@ bool AudioDecoder::Init(CONFIG &config)
         return false;
     }
 
-    // get audio device info
-#if 0
-    mDeviceInfo = QAudioDeviceInfo::defaultOutputDevice();
-
-    AVChannelLayout in_ch_layout = mCodecCtx->ch_layout;
-    int in_channels = mCodecCtx->channels;
-    int in_sample_rate = mCodecCtx->sample_rate;
-
-    QAudioFormat outAudioFormat = { }, tryOutAudioFormat = { };
-    outAudioFormat.setSampleRate(in_sample_rate);
-    outAudioFormat.setChannelCount(in_channels);
-    // always swr in to out(QAudioFormat::Float - AV_SAMPLE_FMT_FLT)
-    outAudioFormat.setSampleType(QAudioFormat::Float);
-    outAudioFormat.setSampleSize(32);
-
-    qDebug() << QString("outAudioFormat1: channelCount=%1, sampleRate=%2, sampleSize=%3, sampleType=%4")
-                .arg(outAudioFormat.channelCount())
-                .arg(outAudioFormat.sampleRate())
-                .arg(outAudioFormat.sampleSize())
-                .arg(outAudioFormat.sampleType());
-
-    if (!mDeviceInfo.isFormatSupported(outAudioFormat))
-    {
-        qWarning() << QString("outAudioFormat is not supported: channelCount=%1, sampleRate=%2, sampleSize=%3, sampleType=%4")
-                      .arg(outAudioFormat.channelCount())
-                      .arg(outAudioFormat.sampleRate())
-                      .arg(outAudioFormat.sampleSize())
-                      .arg(outAudioFormat.sampleType());
-        return false;
-    }
-#endif
-
-//    if (!mDeviceInfo.isFormatSupported(outAudioFormat))
-//        outAudioFormat = mDeviceInfo.nearestFormat(outAudioFormat);
-
-
-//    swr_alloc_set_opts2(&mSwrCtx,
-//                        outAudioFormat.channelCount(),
-//                        AV_SAMPLE_FMT_FLT,
-//                        )
-
-//    mPacket = av_packet_alloc();
     qInfo("audio decoder finish init");
 
     return true;

@@ -55,11 +55,12 @@ private:
 
     QAudioDeviceInfo mDeviceInfo;
 
-    int mAudioStreamIndex;
-    AVFormatContext *mFmtCtx = nullptr;
+
+    AVStream *mStream = nullptr;
+
     AVCodecContext *mCodecCtx = nullptr;
     const AVCodec *mCodec = nullptr;
-//    SwrContext *mSwrCtx = nullptr;
+
 
     AVPacket *mPacket = nullptr;
 
