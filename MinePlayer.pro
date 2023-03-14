@@ -12,6 +12,7 @@ CONFIG += c++11
 SOURCES += \
     audiodecoder.cpp \
     audioplayback.cpp \
+    basetime.cpp \
     main.cpp \
     mainwindow.cpp \
     playengine.cpp \
@@ -24,6 +25,7 @@ SOURCES += \
 HEADERS += \
     audiodecoder.h \
     audioplayback.h \
+    basetime.h \
     mainwindow.h \
     playengine.h \
     reader.h \

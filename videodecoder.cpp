@@ -5,7 +5,7 @@
 extern "C"
 {
 #include "libavcodec/avcodec.h"
-
+#include "libavutil/time.h"
 }
 
 
@@ -151,6 +151,10 @@ int VideoDecoder::GetPixelFormat() const
     return mStream->codecpar->format;
 }
 
+AVRational& VideoDecoder::GetTimeBase() const
+{
+    return mStream->time_base;
+}
 
 void VideoDecoder::OnDecode()
 {
@@ -168,10 +172,10 @@ void VideoDecoder::OnDecode()
 //        Utils::AppendBytesToFile(QString("D:\\out.h264"), (const char*)packet->data, packet->size);
 //    }
 
-    qDebug("[video] OnDecode(packet): dts(%ld) pts(%ld) time_base(%d,%d) duration(%ld)",
-           packet->dts, packet->pts, /*packet->time_base.num, packet->time_base.den,*/
-           mCodecCtx->time_base.num, mCodecCtx->time_base.den,
-           packet->duration);
+//    qDebug("[video] OnDecode(packet): dts(%ld) pts(%ld) time_base(%d,%d) duration(%ld)",
+//           packet->dts, packet->pts, /*packet->time_base.num, packet->time_base.den,*/
+//           mCodecCtx->time_base.num, mCodecCtx->time_base.den,
+//           packet->duration);
 
     int ret = avcodec_send_packet(mCodecCtx, packet);
     if (ret < 0 && ret != AVERROR(EAGAIN))
@@ -189,6 +193,11 @@ void VideoDecoder::OnDecode()
         av_frame_free(&frame);
         return;
     }
+
+//    qDebug("[video] OnDecode(frame): pts(%ld) time_base(%d,%d) duration(%ld)",
+//           frame->pts, /*packet->time_base.num, packet->time_base.den,*/
+//           mStream->time_base.num, mStream->time_base.den,
+//           frame->duration);
 
     AVFrame *dstFrame = av_frame_alloc();
     dstFrame->format = AV_PIX_FMT_NV12;
@@ -211,11 +220,26 @@ void VideoDecoder::OnDecode()
                   dstFrame->data, dstFrame->linesize);
     }
 
+    dstFrame->pts = frame->pts;
+    dstFrame->duration = frame->duration;
+    dstFrame->repeat_pict = frame->repeat_pict;
+
+
     av_frame_free(&frame);
 
+    int64_t curTime = av_gettime();
+    int64_t curTime2 = av_gettime_relative();
+    double pts2 = dstFrame->pts * av_q2d(mStream->time_base);
+    double duration2 = dstFrame->duration * av_q2d(mStream->time_base);
+
+//    qDebug("[video] OnDecode(frame): pts(%lld) time_base(%d,%d) duration(%ld), "
+//           "repeat_pict(%d), pts2=%f, duration2=%f, curTime=%lld, curTime2=%lld",
+//           dstFrame->pts, /*packet->time_base.num, packet->time_base.den,*/
+//           mStream->time_base.num, mStream->time_base.den,
+//           dstFrame->duration, dstFrame->repeat_pict,
+//           pts2,duration2, curTime, curTime2);
 
 
-//    qDebug() << "avcodec_receive_frame";
     {
 
         QMutexLocker locker(&mFramesMutex);

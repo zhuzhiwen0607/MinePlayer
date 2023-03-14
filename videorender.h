@@ -3,15 +3,16 @@
 
 
 #include <QThread>
-
+#include <QTimer>
+#include <QTime>
 #include <windows.h>
 #include <wrl/client.h>
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include <d3dcompiler.h>
-//#include "reader.h"
 #include "renderview.h"
 #include "videodecoder.h"
+#include "basetime.h"
 
 class VideoRender : public QThread
 {
@@ -20,11 +21,9 @@ class VideoRender : public QThread
 public:
     typedef struct
     {
-//        HWND winId;
         int taskId;
         int refreshRate;
         RenderView *renderView;
-//        Reader *reader;
         VideoDecoder *decoder;
     } CONFIG;
 
@@ -36,7 +35,6 @@ public:
 
 
 public:
-//    explicit Render(CONFIG &config);
     VideoRender();
     ~VideoRender();
 
@@ -46,22 +44,26 @@ public:
     void Start();
 
 public slots:
-//    void OnNewFrame();
     void OnRender();
 
 protected:
     virtual void run() override;
 
 private:
-//    bool Init();
     bool CompileShaderFromFile(QString fileName, QString entryPoint, QString shaderModel, ID3DBlob** ppBlobOut);
+
+    void DoRender(QByteArray &frameBytes, int width, int height);
 
 private:
     CONFIG mConfig;
 
-//    Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
-//    Microsoft::WRL::ComPtr<ID3D11Device> mDevice;
-//    Microsoft::WRL::ComPtr<ID3D11DeviceContext> mDeviceContext;
+    unsigned long mDelay = 0;
+    double mNextPTS = -1.0;
+    QTimer mNextFrameTimer;
+
+//    QTime mBaseTime;
+    BaseTime *mBaseTime;
+
     int mVerticesNum = 0;
     IDXGISwapChain *mSwapChain = nullptr;
     ID3D11Device *mDevice = nullptr;

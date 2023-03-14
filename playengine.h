@@ -12,6 +12,7 @@
 #include "videorender.h"
 #include "audiodecoder.h"
 #include "audioplayback.h"
+#include "basetime.h"
 
 //extern "C"
 //{
@@ -44,6 +45,8 @@ public:
 
 private:
     CONFIG mConfig;
+
+//    BaseTime *mBaseTime;
 
     Reader mReader;
     VideoDecoder mVideoDecoder;

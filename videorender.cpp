@@ -43,50 +43,127 @@ VideoRender::~VideoRender()
 
 void VideoRender::Start()
 {
+//    mBaseTime.start();
     this->start();
 
 }
 
 void VideoRender::OnRender()
 {
-//    qDebug() << "OnRender";
-
-//    if (taskId != mConfig.taskId)
-//        return;
-
-    AVFrame *frame = mConfig.decoder->GetFrame();
-    if (!frame)
-        return;
-
-//    static QByteArray frameBytes;
-    QByteArray frameBytes;
-    int size = av_image_get_buffer_size((AVPixelFormat)frame->format, frame->width, frame->height, 1);
-    frameBytes.resize(size);
-    int copyBytes = av_image_copy_to_buffer((uint8_t*)frameBytes.data(),
-                                            size,
-                                            (const uint8_t* const*)frame->data,
-                                            (const int*)frame->linesize,
-                                            (AVPixelFormat)frame->format,
-                                            frame->width,
-                                            frame->height,
-                                            1);
-//    qDebug() << QString("av_image_copy_to_buffer copyBytes=%1").arg(copyBytes);
-    if (copyBytes < 0)
+    do
     {
-        qWarning() << QString("av_image_copy_to_buffer error: ret=%1").arg(copyBytes);
-        return;
+        AVFrame *frame = mConfig.decoder->GetFrame();
+        if (!frame)
+        {
+//            qDebug("GetFrame is null");
+            break;
+        }
+
+
+        double pts = frame->pts * av_q2d(mConfig.decoder->GetTimeBase()) * 1000;    // ms
+        double duration = frame->duration * av_q2d(mConfig.decoder->GetTimeBase()) * 1000;
+        int baseTime = mBaseTime->elapsed();
+        if (pts >= baseTime + duration)
+        {
+            qDebug("pts >= baseTime + duration");
+            break;
+        }
+
+//        qDebug("pts(%f), baseTime(%d)", pts, baseTime);
+
+//        if (mNextPTS > 1.0 && curPTS < mNextPTS)
+//        {
+//            continue;
+//        }
+
+//        double delay = frame->duration * av_q2d(mConfig.decoder->GetTimeBase()) * 1000;
+//        mNextPTS = curPTS + delay;
+
+//        mNextFrameTimer.setInterval((int)mNextPTS);
+//        mNextFrameTimer.setSingleShot();
+
+
+    //    static QByteArray frameBytes;
+        QByteArray frameBytes;
+        int size = av_image_get_buffer_size((AVPixelFormat)frame->format, frame->width, frame->height, 1);
+        frameBytes.resize(size);
+        int copyBytes = av_image_copy_to_buffer((uint8_t*)frameBytes.data(),
+                                                size,
+                                                (const uint8_t* const*)frame->data,
+                                                (const int*)frame->linesize,
+                                                (AVPixelFormat)frame->format,
+                                                frame->width,
+                                                frame->height,
+                                                1);
+    //    qDebug() << QString("av_image_copy_to_buffer copyBytes=%1").arg(copyBytes);
+        if (copyBytes < 0)
+        {
+            qWarning() << QString("av_image_copy_to_buffer error: ret=%1").arg(copyBytes);
+            return;
+        }
+
+        int width = frame->width;
+        int height = frame->height;
+
+        mConfig.decoder->FreeFrame(frame);
+
+    //    qDebug() << QString("frameBytes size=%1, copyBytes=%2").arg(frameBytes.size()).arg(copyBytes);
+    //    int threadId = (int)this->currentThreadId();
+
+    //    Utils::AppendBytesToFile(QString("E:\\renderfile_%1.yuv").arg(threadId), frameBytes.data(), copyBytes);
+
+        DoRender(frameBytes, width, height);
+    } while (true);
+}
+
+void VideoRender::run()
+{
+//    mNextFrameTimer.start();
+    exec();
+//    mNextFrameTimer.stop();
+//    while (true)
+//    {
+//        OnRender();
+//        msleep(10);
+//    }
+
+
+}
+
+bool VideoRender::CompileShaderFromFile(QString fileName, QString entryPoint, QString shaderModel, ID3DBlob **ppBlobOut)
+{
+    HRESULT hr = S_OK;
+
+    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+
+#ifdef QT_DEBUG
+    dwShaderFlags |= D3DCOMPILE_DEBUG;
+    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+    ID3DBlob* pErrorBlob = nullptr;
+    hr = D3DCompileFromFile(fileName.toStdWString().c_str(), NULL, NULL, entryPoint.toStdString().c_str(), shaderModel.toStdString().c_str(), dwShaderFlags, 0,  ppBlobOut, &pErrorBlob);
+
+    if (FAILED(hr))
+    {
+
+        qWarning() << QString::asprintf("D3DCompileFromFile error:%x  %s ", hr, (const char*)pErrorBlob->GetBufferPointer());
+        if (pErrorBlob)
+            pErrorBlob->Release();
+
+        //qInfo() << QString::asprintf("D3DCompileFromFile failed %x", hr);
+        return false;
     }
 
-    int width = frame->width;
-    int height = frame->height;
+    if (pErrorBlob)
+        pErrorBlob->Release();
 
-    mConfig.decoder->FreeFrame(frame);
+    return true;
 
-//    qDebug() << QString("frameBytes size=%1, copyBytes=%2").arg(frameBytes.size()).arg(copyBytes);
-    int threadId = (int)this->currentThreadId();
+}
 
-//    Utils::AppendBytesToFile(QString("E:\\renderfile_%1.yuv").arg(threadId), frameBytes.data(), copyBytes);
-
+void VideoRender::DoRender(QByteArray &frameBytes, int width, int height)
+{
     RELEASE(mTexture);
     RELEASE(mTextureSRV[0]);
     RELEASE(mTextureSRV[1]);
@@ -145,54 +222,21 @@ void VideoRender::OnRender()
     mSwapChain->Present(0, 0);
 }
 
-void VideoRender::run()
-{
-    exec();
-}
-
-bool VideoRender::CompileShaderFromFile(QString fileName, QString entryPoint, QString shaderModel, ID3DBlob **ppBlobOut)
-{
-    HRESULT hr = S_OK;
-
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-
-#ifdef QT_DEBUG
-    dwShaderFlags |= D3DCOMPILE_DEBUG;
-    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
-
-    ID3DBlob* pErrorBlob = nullptr;
-    hr = D3DCompileFromFile(fileName.toStdWString().c_str(), NULL, NULL, entryPoint.toStdString().c_str(), shaderModel.toStdString().c_str(), dwShaderFlags, 0,  ppBlobOut, &pErrorBlob);
-
-    if (FAILED(hr))
-    {
-
-        qWarning() << QString::asprintf("D3DCompileFromFile error:%x  %s ", hr, (const char*)pErrorBlob->GetBufferPointer());
-        if (pErrorBlob)
-            pErrorBlob->Release();
-
-        //qInfo() << QString::asprintf("D3DCompileFromFile failed %x", hr);
-        return false;
-    }
-
-    if (pErrorBlob)
-        pErrorBlob->Release();
-
-    return true;
-
-}
-
 bool VideoRender::Init(VideoRender::CONFIG &config)
 {
     moveToThread(this);
 
+    mNextFrameTimer.moveToThread(this);
+
     mConfig = config;
+    mBaseTime = BaseTime::GetInstance();
 
     if (false == InitD3D())
         return false;
 
     connect(mConfig.decoder, &VideoDecoder::SigRenderVideo, this, &VideoRender::OnRender);
 //    connect(mConfig.decoder, SIGNAL(SigRenderVideo(int)), this, SLOT(OnRender(int)));
+
 
     qInfo() << "video render finish init";
     return true;

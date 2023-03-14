@@ -58,9 +58,9 @@ bool PlayEngine::Init(PlayEngine::CONFIG &config)
         qDebug() << QString::asprintf("playengine finish init: [%d]reader=%p, decoder=%p, render=%p",
                                       taskId, &mReader, &mVideoDecoder, &mVideoRender);
 
-
-
         ++taskId;
+
+//        mBaseTime = BaseTime::GetInstance();
 
 
         return true;
@@ -77,6 +77,9 @@ void PlayEngine::Play()
     mAudioPlayback.Start();
     mAudioDecoder.Start();
     mReader.Start();
+
+//    mBaseTime->start();
+    BaseTime::GetInstance()->start();
 }
 
 void PlayEngine::Pause()

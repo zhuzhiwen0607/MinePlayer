@@ -42,6 +42,8 @@ public:
     int GetVideoHeight() const;
     int GetPixelFormat() const;
 
+    AVRational& GetTimeBase() const;
+
 signals:
     void SigRenderVideo();
 
@@ -66,13 +68,15 @@ private:
     SwsContext *mSwsContext = nullptr;
     AVBufferRef *mHWContext = nullptr;
 
-
     QMutex mFramesMutex;
     QQueue<AVFrame*> mFrames;
 
 
+
+
+
     AVFormatContext *mOutFmtCtx = nullptr;    // test
-    AVCodecParserContext *mParser = nullptr;
+//    AVCodecParserContext *mParser = nullptr;
 };
 
 #endif // DECODER_H

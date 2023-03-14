@@ -147,7 +147,7 @@ void Reader::OnReadFile()
 
 void Reader::run()
 {
-    mReaderTimer.start(10);
+    mReaderTimer.start(4);
 
     exec();
 
